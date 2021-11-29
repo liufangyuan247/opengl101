@@ -99,6 +99,14 @@ int main(int argc, const char **argv)
       //view = glm::mat4(1);
       glUniformMatrix4fv(view_loc, 1, GL_FALSE, (float *)&view);
 
+      glm::mat4 projection(1);
+
+      projection = glm::scale(glm::mat4(1),glm::vec3(float(height)/width,1,1));
+
+      int projection_loc = glGetUniformLocation(shaderProgram, "projection");
+
+      glUniformMatrix4fv(projection_loc, 1, GL_FALSE, (float *)&projection);
+
       glBindVertexArray(VAO);
 
       glDrawArrays(GL_TRIANGLES, 0, 3);
@@ -167,11 +175,12 @@ in vec4 color;
 
 uniform mat4 model;
 uniform mat4 view;
+uniform mat4 projection;
 
 out vec4 vsColor;
 void main()
 {
-  gl_Position=view * model * position;
+  gl_Position=projection * view * model * position;
   vsColor=color;
 }
   )";
