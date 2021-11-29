@@ -3,6 +3,7 @@
 #include <GLFW/glfw3.h>
 #include <cstdio>
 #include <vector>
+#include <glm/gtx/transform.hpp>
 
 using std::printf;
 using namespace glm;
@@ -63,24 +64,23 @@ int main(int argc, const char **argv)
 
       glUseProgram(shaderProgram);
 
-      int offset_loc = glGetUniformLocation(shaderProgram, "offset");
       glm::vec2 offset;
       offset.x = glm::sin(glfwGetTime()) * 0.5;
       offset.y = glm::cos(glfwGetTime()) * 0.5;
-      
-      glUniform2fv(offset_loc, 1, (float *)&offset);
 
-      int scale_loc = glGetUniformLocation(shaderProgram, "scale");
       glm::vec2 scale;
-      scale.x = 1 + glm::sin(glfwGetTime()*1.13) * 0.25;
-      scale.y = 1 + glm::cos(glfwGetTime()*1.71) * 0.3;
+      scale.x = 1 + glm::sin(glfwGetTime() * 1.13) * 0.25;
+      scale.y = 1 + glm::cos(glfwGetTime() * 1.71) * 0.3;
 
-      glUniform2fv(scale_loc, 1, (float *)&scale);
-
-      int angle_loc = glGetUniformLocation(shaderProgram, "angle");
       float angle = glfwGetTime();
 
-      glUniform1f(angle_loc, angle);
+      glm::mat4 model(1);
+
+      model = glm::translate(glm::mat4(1), glm::vec3(offset, 0)) * glm::rotate(glm::mat4(1), angle, glm::vec3(0, 0, 1)) * glm::scale(glm::mat4(1), glm::vec3(scale, 1));
+
+      int model_loc = glGetUniformLocation(shaderProgram, "model");
+
+      glUniformMatrix4fv(model_loc, 1, GL_FALSE, (float *)&model);
 
       glBindVertexArray(VAO);
 
@@ -148,23 +148,12 @@ GLuint CreateShaderProgram()
 in vec4 position;
 in vec4 color;
 
-uniform vec2 offset;
-uniform vec2 scale;
-uniform float angle;
+uniform mat4 model;
 
 out vec4 vsColor;
 void main()
 {
-  vec4 p = position;
-  p *= vec4(scale,1,1);
-  //rotate
-  vec2 new_x = vec2(cos(angle),sin(angle))*p.x;
-  vec2 new_y = vec2(-sin(angle),cos(angle))*p.y;
-
-  p.xy = new_x+new_y;
-
-  p += vec4(offset,0,0);
-  gl_Position=p;
+  gl_Position=model * position;
   vsColor=color;
 }
   )";
