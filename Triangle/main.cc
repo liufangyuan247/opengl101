@@ -67,7 +67,7 @@ int main(int argc, const char **argv)
       glm::vec2 offset;
       offset.x = glm::sin(glfwGetTime()) * 0.5;
       offset.y = glm::cos(glfwGetTime()) * 0.5;
-
+      
       glUniform2fv(offset_loc, 1, (float *)&offset);
 
       int scale_loc = glGetUniformLocation(shaderProgram, "scale");
@@ -77,7 +77,10 @@ int main(int argc, const char **argv)
 
       glUniform2fv(scale_loc, 1, (float *)&scale);
 
-      
+      int angle_loc = glGetUniformLocation(shaderProgram, "angle");
+      float angle = glfwGetTime();
+
+      glUniform1f(angle_loc, angle);
 
       glBindVertexArray(VAO);
 
@@ -147,11 +150,21 @@ in vec4 color;
 
 uniform vec2 offset;
 uniform vec2 scale;
+uniform float angle;
 
 out vec4 vsColor;
 void main()
 {
-  gl_Position=position*vec4(scale,1,1)+vec4(offset,0,0);
+  vec4 p = position;
+  p *= vec4(scale,1,1);
+  //rotate
+  vec2 new_x = vec2(cos(angle),sin(angle))*p.x;
+  vec2 new_y = vec2(-sin(angle),cos(angle))*p.y;
+
+  p.xy = new_x+new_y;
+
+  p += vec4(offset,0,0);
+  gl_Position=p;
   vsColor=color;
 }
   )";
