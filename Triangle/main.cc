@@ -78,9 +78,26 @@ int main(int argc, const char **argv)
 
       model = glm::translate(glm::mat4(1), glm::vec3(offset, 0)) * glm::rotate(glm::mat4(1), angle, glm::vec3(0, 0, 1)) * glm::scale(glm::mat4(1), glm::vec3(scale, 1));
 
+      model = glm::mat4(1);
       int model_loc = glGetUniformLocation(shaderProgram, "model");
 
       glUniformMatrix4fv(model_loc, 1, GL_FALSE, (float *)&model);
+
+      glm::mat4 view(1);
+
+      glm::vec3 center = glm::vec3(0, 0, 0);
+      glm::vec3 pos = glm::vec3(glm::sin(glfwGetTime()), 0, glm::cos(glfwGetTime()))*0.5f;
+      glm::vec3 up = glm::vec3(0, 1, 0);
+
+      glm::vec3 forword = glm::normalize(center - pos);
+      glm::vec3 side = glm::normalize(glm::cross(forword, up));
+      up = glm::normalize(glm::cross(side, forword));
+
+      view = glm::mat4(glm::transpose(glm::mat3(side, up, forword))) * glm::translate(glm::mat4(1), -pos);
+
+      int view_loc = glGetUniformLocation(shaderProgram, "view");
+      //view = glm::mat4(1);
+      glUniformMatrix4fv(view_loc, 1, GL_FALSE, (float *)&view);
 
       glBindVertexArray(VAO);
 
@@ -149,11 +166,12 @@ in vec4 position;
 in vec4 color;
 
 uniform mat4 model;
+uniform mat4 view;
 
 out vec4 vsColor;
 void main()
 {
-  gl_Position=model * position;
+  gl_Position=view * model * position;
   vsColor=color;
 }
   )";
