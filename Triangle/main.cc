@@ -40,7 +40,7 @@ int main(int argc, const char **argv)
 
   glfwMakeContextCurrent(window);
   glfwSwapInterval(0);
-  
+
   glewExperimental = GL_TRUE;
   if (glewInit() != GLEW_OK)
   {
@@ -62,6 +62,14 @@ int main(int argc, const char **argv)
       glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
       glUseProgram(shaderProgram);
+
+      int loc = glGetUniformLocation(shaderProgram, "offset");
+      glm::vec2 offset;
+      offset.x = glm::sin(glfwGetTime()) * 0.5;
+      offset.y = glm::cos(glfwGetTime()) * 0.5;
+
+      glUniform2fv(loc, 1, (float *)&offset);
+
       glBindVertexArray(VAO);
 
       glDrawArrays(GL_TRIANGLES, 0, 3);
@@ -90,10 +98,10 @@ void InitializeResource()
 
   glBufferData(GL_ARRAY_BUFFER, sizeof(datas), datas, GL_STATIC_DRAW);
 
-  int posLoc = glGetAttribLocation(shaderProgram,"position");
+  int posLoc = glGetAttribLocation(shaderProgram, "position");
   glEnableVertexAttribArray(posLoc);
   glVertexAttribPointer(posLoc, 3, GL_FLOAT, GL_FALSE, sizeof(VertexAttrib), 0);
-  int colorLoc = glGetAttribLocation(shaderProgram,"color");
+  int colorLoc = glGetAttribLocation(shaderProgram, "color");
   glEnableVertexAttribArray(colorLoc);
   glVertexAttribPointer(colorLoc, 3, GL_FLOAT, GL_FALSE, sizeof(VertexAttrib), (void *)(sizeof(vec3)));
   glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -128,10 +136,12 @@ GLuint CreateShaderProgram()
 in vec4 position;
 in vec4 color;
 
+uniform vec2 offset;
+
 out vec4 vsColor;
 void main()
 {
-  gl_Position=position;
+  gl_Position=position+vec4(offset,0,0);
   vsColor=color;
 }
   )";
