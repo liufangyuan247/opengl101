@@ -63,12 +63,21 @@ int main(int argc, const char **argv)
 
       glUseProgram(shaderProgram);
 
-      int loc = glGetUniformLocation(shaderProgram, "offset");
+      int offset_loc = glGetUniformLocation(shaderProgram, "offset");
       glm::vec2 offset;
       offset.x = glm::sin(glfwGetTime()) * 0.5;
       offset.y = glm::cos(glfwGetTime()) * 0.5;
 
-      glUniform2fv(loc, 1, (float *)&offset);
+      glUniform2fv(offset_loc, 1, (float *)&offset);
+
+      int scale_loc = glGetUniformLocation(shaderProgram, "scale");
+      glm::vec2 scale;
+      scale.x = 1 + glm::sin(glfwGetTime()*1.13) * 0.25;
+      scale.y = 1 + glm::cos(glfwGetTime()*1.71) * 0.3;
+
+      glUniform2fv(scale_loc, 1, (float *)&scale);
+
+      
 
       glBindVertexArray(VAO);
 
@@ -137,11 +146,12 @@ in vec4 position;
 in vec4 color;
 
 uniform vec2 offset;
+uniform vec2 scale;
 
 out vec4 vsColor;
 void main()
 {
-  gl_Position=position+vec4(offset,0,0);
+  gl_Position=position*vec4(scale,1,1)+vec4(offset,0,0);
   vsColor=color;
 }
   )";
