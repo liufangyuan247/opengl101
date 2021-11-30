@@ -19,9 +19,20 @@ struct VertexAttrib
   vec3 color;
 };
 
+bool use_my_mat = true;
+
 GLuint LoadShader(GLenum shaderType, const char *shaderSrc);
 GLuint CreateShaderProgram();
 void InitializeResource();
+
+void OnKey(GLFWwindow *, int key, int scancode, int action, int mod)
+{
+  if (GLFW_PRESS == action && key == GLFW_KEY_T)
+  {
+    use_my_mat = !use_my_mat;
+    printf("use my matrix: %d\n", use_my_mat ? 1 : 0);
+  }
+}
 
 int main(int argc, const char **argv)
 {
@@ -39,6 +50,8 @@ int main(int argc, const char **argv)
     return -1;
   }
 
+  glfwSetKeyCallback(window, OnKey);
+
   glfwMakeContextCurrent(window);
   glfwSwapInterval(0);
 
@@ -54,6 +67,7 @@ int main(int argc, const char **argv)
   while (!glfwWindowShouldClose(window))
   {
     glfwPollEvents();
+
     int width = 0;
     int height = 0;
     glfwGetWindowSize(window, &width, &height);
@@ -86,30 +100,59 @@ int main(int argc, const char **argv)
       glm::mat4 view(1);
 
       glm::vec3 center = glm::vec3(0, 0, 0);
-      glm::vec3 pos = glm::vec3(glm::sin(glfwGetTime()), 0, glm::cos(glfwGetTime()))*0.5f;
+      glm::vec3 pos = glm::normalize(glm::vec3(glm::sin(glfwGetTime()), 0.5, glm::cos(glfwGetTime()))) * 5.0f;
       glm::vec3 up = glm::vec3(0, 1, 0);
 
-      glm::vec3 forword = glm::normalize(center - pos);
-      glm::vec3 side = glm::normalize(glm::cross(forword, up));
-      up = glm::normalize(glm::cross(side, forword));
+      glm::vec3 forward = glm::normalize(pos - center);
+      glm::vec3 side = glm::normalize(glm::cross(up, forward));
+      up = glm::normalize(glm::cross(forward, side));
 
-      view = glm::mat4(glm::transpose(glm::mat3(side, up, forword))) * glm::translate(glm::mat4(1), -pos);
+      view = glm::mat4(glm::transpose(glm::mat3(side, up, forward))) * glm::translate(glm::mat4(1), -pos);
 
       int view_loc = glGetUniformLocation(shaderProgram, "view");
-      //view = glm::mat4(1);
+      // view = glm::mat4(1);
       glUniformMatrix4fv(view_loc, 1, GL_FALSE, (float *)&view);
 
       glm::mat4 projection(1);
 
-      projection = glm::scale(glm::mat4(1),glm::vec3(float(height)/width,1,1));
+      float near = -4.0, far = -6.0;
+      projection = glm::scale(glm::mat4(1), glm::vec3(float(height) / width, 1, 1)) *
+                   glm::scale(glm::mat4(1), glm::vec3(1, 1, 2 / (near - far))) *
+                   glm::translate(glm::mat4(1), glm::vec3(0, 0, -(near + far) * 0.5));
+
+      glm::mat4 p(1);
+      p[2][3] = (near - far) / (2 * near);
+      p[3][3] = (near + far) / (2 * near);
+
+      p = glm::scale(glm::mat4(1), glm::vec3(1, 1, 2 / (1 + near / far))) * glm::translate(glm::mat4(1), glm::vec3(0, 0, -(1 - near / far) * 0.5)) * p;
+
+      projection = p * projection;
+
+      //projection[0][2] *= -1;
+      //projection[1][2] *= -1;
+      //projection[2][2] *= -1;
+      //projection[3][2] *= -1;
 
       int projection_loc = glGetUniformLocation(shaderProgram, "projection");
 
       glUniformMatrix4fv(projection_loc, 1, GL_FALSE, (float *)&projection);
 
+      glm::mat4 my_VP = projection * view;
+      glm::mat4 glm_V = glm::lookAt(pos, center, up);
+      glm::mat4 glm_P = glm::frustum(-float(width) / height, float(width) / height, -1.0f, 1.0f, -near, -far);
+      glm::mat4 glm_VP = glm_P * glm_V;
+
+      if (!use_my_mat)
+      {
+        glUniformMatrix4fv(view_loc, 1, GL_FALSE, (float *)&glm_V);
+        glUniformMatrix4fv(projection_loc, 1, GL_FALSE, (float *)&glm_P);
+      }
+
+      glm::mat4 diff = glm_VP * inverse(my_VP);
+
       glBindVertexArray(VAO);
 
-      glDrawArrays(GL_TRIANGLES, 0, 3);
+      glDrawArrays(GL_TRIANGLES, 0, 9);
     }
     glfwSwapBuffers(window);
   }
@@ -127,10 +170,27 @@ void InitializeResource()
   glGenBuffers(1, &VBO);
   glBindBuffer(GL_ARRAY_BUFFER, VBO);
 
+ /*  // triangle
   VertexAttrib datas[] = {
       {{0, 0.5, 0}, {1, 0, 0}},
       {{-0.5, -0.5, 0}, {0, 1, 0}},
       {{0.5, -0.5, 0}, {0, 0, 1}},
+  };
+*/
+
+
+
+  // corner
+  VertexAttrib datas[] = {
+      {{0, 0, 0}, {1, 1, 1}},
+      {{0, 0.5, 0}, {1, 0, 0}},
+      {{0, 0, 0.5}, {1, 0, 0}},
+      {{0, 0, 0}, {1, 1, 1}},
+      {{0.5, 0, 0}, {0, 0, 1}},
+      {{0, 0.5, 0}, {0, 0, 1}},
+      {{0, 0, 0}, {1, 1, 1}},
+      {{0.5, 0, 0}, {0, 1, 0}},
+      {{0, 0, 0.5}, {0, 1, 0}},
   };
 
   glBufferData(GL_ARRAY_BUFFER, sizeof(datas), datas, GL_STATIC_DRAW);
@@ -144,7 +204,10 @@ void InitializeResource()
   glBindBuffer(GL_ARRAY_BUFFER, 0);
 
   glClearColor(0.2, 0.3, 0.4, 1);
-  glClearDepth(1.0f);
+  glClearDepth(0.0f);
+
+  glEnable(GL_DEPTH_TEST);
+  glDepthFunc(GL_GEQUAL);
 }
 
 GLuint LoadShader(GLenum shaderType, const char *shaderSrc)
