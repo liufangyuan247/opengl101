@@ -4,6 +4,8 @@
 #include <cstdio>
 #include <vector>
 #include <glm/gtx/transform.hpp>
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
 
 using std::printf;
 using namespace glm;
@@ -12,11 +14,12 @@ GLFWwindow *window = nullptr;
 GLuint shaderProgram = 0;
 GLuint VAO;
 GLuint VBO;
+GLuint texture;
 
 struct VertexAttrib
 {
   vec3 pos;
-  vec3 color;
+  vec2 uv;
 };
 
 bool use_my_mat = true;
@@ -148,7 +151,10 @@ int main(int argc, const char **argv)
         glUniformMatrix4fv(projection_loc, 1, GL_FALSE, (float *)&glm_P);
       }
 
-      glm::mat4 diff = glm_VP * inverse(my_VP);
+      glActiveTexture(GL_TEXTURE0);
+      glBindTexture(GL_TEXTURE_2D,texture);
+      int tex_loc = glGetUniformLocation(shaderProgram, "tex");
+      glUniform1i(tex_loc, 0);
 
       glBindVertexArray(VAO);
 
@@ -178,19 +184,17 @@ void InitializeResource()
   };
 */
 
-
-
   // corner
   VertexAttrib datas[] = {
-      {{0, 0, 0}, {1, 1, 1}},
-      {{0, 0.5, 0}, {1, 0, 0}},
-      {{0, 0, 0.5}, {1, 0, 0}},
-      {{0, 0, 0}, {1, 1, 1}},
-      {{0.5, 0, 0}, {0, 0, 1}},
-      {{0, 0.5, 0}, {0, 0, 1}},
-      {{0, 0, 0}, {1, 1, 1}},
-      {{0.5, 0, 0}, {0, 1, 0}},
-      {{0, 0, 0.5}, {0, 1, 0}},
+      {{0, 0, 0}, {1, 1}},
+      {{0, 0.5, 0}, {1, 0}},
+      {{0, 0, 0.5}, {0,1}},
+      {{0, 0, 0}, {1, 1}},
+      {{0.5, 0, 0}, {1, 0}},
+      {{0, 0.5, 0}, {0, 1}},
+      {{0, 0, 0}, {1, 1}},
+      {{0.5, 0, 0}, {1, 0}},
+      {{0, 0, 0.5}, {0, 1}},
   };
 
   glBufferData(GL_ARRAY_BUFFER, sizeof(datas), datas, GL_STATIC_DRAW);
@@ -198,10 +202,24 @@ void InitializeResource()
   int posLoc = glGetAttribLocation(shaderProgram, "position");
   glEnableVertexAttribArray(posLoc);
   glVertexAttribPointer(posLoc, 3, GL_FLOAT, GL_FALSE, sizeof(VertexAttrib), 0);
-  int colorLoc = glGetAttribLocation(shaderProgram, "color");
-  glEnableVertexAttribArray(colorLoc);
-  glVertexAttribPointer(colorLoc, 3, GL_FLOAT, GL_FALSE, sizeof(VertexAttrib), (void *)(sizeof(vec3)));
+  int uvLoc = glGetAttribLocation(shaderProgram, "uv");
+  glEnableVertexAttribArray(uvLoc);
+  glVertexAttribPointer(uvLoc, 2, GL_FLOAT, GL_FALSE, sizeof(VertexAttrib), (void *)(sizeof(vec3)));
   glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+  {
+    int w=0,h=0;
+    unsigned char *pixels = stbi_load("box.jpg",&w,&h,0,3);
+    if(pixels)
+    {
+      glGenTextures(1,&texture);
+      glBindTexture(GL_TEXTURE_2D,texture);
+      glTexImage2D(GL_TEXTURE_2D,0,GL_RGB8,w,h,0,GL_RGB,GL_UNSIGNED_BYTE,pixels);
+      glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR_MIPMAP_LINEAR);
+      glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);  
+      glGenerateMipmap(GL_TEXTURE_2D);
+    }
+  }
 
   glClearColor(0.2, 0.3, 0.4, 1);
   glClearDepth(0.0f);
@@ -234,26 +252,29 @@ GLuint CreateShaderProgram()
   const char *vertSrc = R"(
 #version 460 core
 in vec4 position;
-in vec4 color;
+in vec2 uv;
 
 uniform mat4 model;
 uniform mat4 view;
 uniform mat4 projection;
 
-out vec4 vsColor;
+out vec2 vsUv;
 void main()
 {
   gl_Position=projection * view * model * position;
-  vsColor=color;
+  vsUv=uv;
 }
   )";
   const char *fragSrc = R"(
 #version 460 core
-in vec4 vsColor;
+in vec2 vsUv;
 out vec4 fragColor;
+
+uniform sampler2D tex;
+
 void main()
 {
-  fragColor=vsColor;
+  fragColor=texture(tex,vsUv);
 }
   )";
 
